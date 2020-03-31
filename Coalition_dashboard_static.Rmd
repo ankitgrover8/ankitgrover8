@@ -1,0 +1,1555 @@
+---
+title: "Coalition of Finance Ministers for Climate Action - Dashboard of Climate-Fiscal Indicators"
+output: 
+  flexdashboard::flex_dashboard:
+            theme: united
+            orientation: rows
+            vertical_layout: fill
+---
+```{r setup, include=FALSE}
+
+library(flexdashboard)
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(reshape2)
+library(ggrepel)
+library(plotly)
+library(crosstalk)
+library(DT)
+library(gridExtra)
+library(ggalt)
+
+Coalition_WB_classification <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PQ_WB_income_group_class")
+
+Coalition_WB_data <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PQ_WB_Data")
+
+OECD_env_tax_share_rev <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PQ_Env-rel tax share ttl rev")
+
+OECD_env_tax_to_GDP <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "Env-related taxes to GDP (%)")
+
+OECD_env_tax_per_capita <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "Env taxes per capita (US$)")
+
+OECD_CP_gap_EUR30 <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "carbonpricinggap_EUR30,60")
+
+unlongOECD_CP_gap_EUR60 <- read_excel("carbon-pricing-gap-by-country-ecr2018.xlsx", sheet = "Carbon Pricing Gap - EUR 60", skip =2)
+
+OECD_prop_emissions_price <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "prop_emissionprice_EUR0,5,30,60")
+
+OECD_IEA_energy_indic <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "OECD-IEA_Energy_Indicators")
+
+CC_risk_readiness <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PQ_CC_Risk_Readiness")
+
+WB_cp_dashboard <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PQ_CP_dashboard_indicators")
+
+CAT_decarbonisation <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PQ_CAT_Decarbonisation")
+
+IEA_GHG_CO2 <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "IEA_GHG_CO2_Emissions")
+
+PRIMAP_GHG_CO2 <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PRIMAP_CO2+GHG_Emissions")
+
+IMF_Eff_Fuel_taxes <- read_excel("Indicators_Coalition_of_Finance_Ministers_mar_20update.xlsx", sheet = "PQ_IMF_Eff.Fuel_Tax")
+
+#Working with the data, Merging where necessary
+
+#WB classification dataframe, Converting characters into factors
+str(Coalition_WB_classification)
+Coalition_WB_classification[1] <- as.factor(Coalition_WB_classification$Country)
+Coalition_WB_classification[2] <- as.factor(Coalition_WB_classification$Region)
+Coalition_WB_classification[3] <- as.factor(Coalition_WB_classification$`Income group`)
+names(Coalition_WB_classification)[3] <- "Income_group"
+
+#Merging WB Classification with WB dataset, converting characters to factors
+Coalition_WB_data <- merge(Coalition_WB_classification,Coalition_WB_data)
+Coalition_WB_data$Indicator <- as.factor(Coalition_WB_data$Indicator)
+Coalition_WB_data$Year <- as.factor(Coalition_WB_data$Year)
+Coalition_WB_data$Value <- as.numeric(Coalition_WB_data$Value)
+str(Coalition_WB_data)
+
+#Merging OECD Environment datasets, converting characters to factors
+OECD_env_taxes_all <- rbind(OECD_env_tax_per_capita,OECD_env_tax_share_rev,OECD_env_tax_to_GDP)
+OECD_env_taxes_all$Country <- as.factor(OECD_env_taxes_all$Country)
+OECD_env_taxes_all$Indicator <- as.factor(OECD_env_taxes_all$Indicator)
+OECD_env_taxes_all$Year <- as.factor(OECD_env_taxes_all$Year)
+OECD_env_taxes_all$Value <- as.numeric(OECD_env_taxes_all$Value)
+str(OECD_env_taxes_all)
+
+#Merge OECD dataset with WB classification dataset
+OECD_env_taxes_all <- merge(OECD_env_taxes_all, Coalition_WB_classification)
+OECD_env_taxes_all <- OECD_env_taxes_all[c(1,5,6,2,3,4)]
+
+#Converting OECD carbon pricing gap dataframes into factors as necessary, melting EUR60 dataframe
+# and merging EUR30 and EUR60 dataframes
+
+str(OECD_CP_gap_EUR30) 
+OECD_CP_gap_EUR30$Country <- as.factor(OECD_CP_gap_EUR30$Country)
+OECD_CP_gap_EUR30$Indicator <- as.factor(OECD_CP_gap_EUR30$Indicator)
+OECD_CP_gap_EUR30$Year <- as.factor(OECD_CP_gap_EUR30$Year)
+OECD_CP_gap_EUR30$Value <- as.numeric(OECD_CP_gap_EUR30$Value)
+OECD_CP_gap_EUR30 <- merge(Coalition_WB_classification, OECD_CP_gap_EUR30)
+
+  #Converting to factors. #Adding indicator name to dataset and reordering. 
+
+unlongOECD_CP_gap_EUR60$Country <- as.factor(unlongOECD_CP_gap_EUR60$Country)
+unlongOECD_CP_gap_EUR60$"2015" <- as.factor(unlongOECD_CP_gap_EUR60$"2015")
+unlongOECD_CP_gap_EUR60$"2012" <- as.factor(unlongOECD_CP_gap_EUR60$"2012")
+unlongOECD_CP_gap_EUR60$"Indicator" <- "Carbon pricing gap at EUR 60" 
+unlongOECD_CP_gap_EUR60$"Indicator" <- as.factor(unlongOECD_CP_gap_EUR60$"Indicator")
+unlongOECD_CP_gap_EUR60 <- unlongOECD_CP_gap_EUR60[c(1,4,2,3)]
+str(unlongOECD_CP_gap_EUR60)
+
+  #Melting dataset for analysis
+OECD_CP_gap_EUR60 <- melt(unlongOECD_CP_gap_EUR60, id.vars = c("Country", "Indicator"), variable.name = "Year", value.name = "Value")
+str(OECD_CP_gap_EUR60)
+OECD_CP_gap_EUR60$Value <- as.numeric(OECD_CP_gap_EUR60$Value)
+
+
+  #Merging long dataset with WB classification dataset and with EUR30 dataset
+OECD_CP_gap_EUR60 <- merge(Coalition_WB_classification, OECD_CP_gap_EUR60)
+
+OECD_CP_gap_EUR30_60 <- full_join(OECD_CP_gap_EUR30,OECD_CP_gap_EUR60)
+OECD_CP_gap_EUR30_60 <- filter(OECD_CP_gap_EUR30_60, Indicator != "NA")
+OECD_CP_gap_EUR30_60$Indicator <- as.factor(OECD_CP_gap_EUR30_60$Indicator)
+OECD_CP_gap_EUR30_60$Year <- as.factor(OECD_CP_gap_EUR30_60$Year)
+
+#Working with the OECD emissions price data. Merging with the carbon pricing gap data
+str(OECD_prop_emissions_price)
+OECD_prop_emissions_price$Country <- as.factor(OECD_prop_emissions_price$Country)
+OECD_prop_emissions_price$Indicator <- as.factor(OECD_prop_emissions_price$Indicator)
+OECD_prop_emissions_price$Year <- as.factor(OECD_prop_emissions_price$Year)
+OECD_prop_emissions_price$Value <- as.numeric(OECD_prop_emissions_price$Value)
+OECD_prop_emissions_price <- merge(Coalition_WB_classification, OECD_prop_emissions_price)
+OECD_emissions_gaps_prices <- full_join(OECD_CP_gap_EUR30_60, OECD_prop_emissions_price)
+
+#Converting to factors. Merging with WB classification data
+
+  #OECD_IEA
+str(OECD_IEA_energy_indic)
+OECD_IEA_energy_indic$Country <- as.factor(OECD_IEA_energy_indic$Country)
+OECD_IEA_energy_indic$Indicator <- as.factor(OECD_IEA_energy_indic$Indicator)
+OECD_IEA_energy_indic$Year <- as.factor(OECD_IEA_energy_indic$Year)
+OECD_IEA_energy_indic$Value <- as.numeric(OECD_IEA_energy_indic$Value)
+OECD_IEA_energy_indic <- merge(Coalition_WB_classification, OECD_IEA_energy_indic)
+
+  #CC_Risk_Readiness
+str(CC_risk_readiness)
+CC_risk_readiness$Country <- as.factor(CC_risk_readiness$Country)
+CC_risk_readiness$Indicator <- as.factor(CC_risk_readiness$Indicator)
+CC_risk_readiness$Year <- as.factor(CC_risk_readiness$Year)
+CC_risk_readiness$Value <- as.numeric(CC_risk_readiness$Value)
+CC_risk_readiness <- merge(Coalition_WB_classification, CC_risk_readiness)
+
+  #Carbon Pricing Dashboard
+str(WB_cp_dashboard)
+WB_cp_dashboard $Country <- as.factor(WB_cp_dashboard $Country)
+WB_cp_dashboard $Indicator <- as.factor(WB_cp_dashboard $Indicator)
+WB_cp_dashboard $Year <- as.factor(WB_cp_dashboard $Year)
+WB_cp_dashboard $Value <- as.numeric(WB_cp_dashboard $Value)
+WB_cp_dashboard  <- merge(Coalition_WB_classification, WB_cp_dashboard )
+
+  #CAT_Decarbonisation
+str(CAT_decarbonisation)
+CAT_decarbonisation$Country <- as.factor(CAT_decarbonisation$Country)
+CAT_decarbonisation$Indicator <- as.factor(CAT_decarbonisation$Indicator)
+CAT_decarbonisation$Year <- as.factor(CAT_decarbonisation$Year)
+CAT_decarbonisation$Value <- as.numeric(CAT_decarbonisation$Value)
+CAT_decarbonisation  <- merge(Coalition_WB_classification, CAT_decarbonisation )
+
+  #IEA_GHG_CO2
+str(IEA_GHG_CO2)
+IEA_GHG_CO2$Country <- as.factor(IEA_GHG_CO2$Country)
+IEA_GHG_CO2$Indicator <- as.factor(IEA_GHG_CO2$Indicator)
+IEA_GHG_CO2$Year <- as.factor(IEA_GHG_CO2$Year)
+IEA_GHG_CO2$Value <- as.numeric(IEA_GHG_CO2$Value)
+IEA_GHG_CO2  <- merge(Coalition_WB_classification, IEA_GHG_CO2 )
+
+  #PRIMAP_GHG_CO2 
+str(PRIMAP_GHG_CO2)
+PRIMAP_GHG_CO2$Country <- as.factor(PRIMAP_GHG_CO2$Country)
+PRIMAP_GHG_CO2$Indicator <- as.factor(PRIMAP_GHG_CO2$Indicator)
+PRIMAP_GHG_CO2$Year <- as.factor(PRIMAP_GHG_CO2$Year)
+PRIMAP_GHG_CO2$Value <- as.numeric(PRIMAP_GHG_CO2$Value)
+PRIMAP_GHG_CO2  <- merge(Coalition_WB_classification, PRIMAP_GHG_CO2 )
+
+  #IMF_Eff_Fuel_taxes 
+str(IMF_Eff_Fuel_taxes)
+IMF_Eff_Fuel_taxes$Country <- as.factor(IMF_Eff_Fuel_taxes$Country)
+IMF_Eff_Fuel_taxes$Indicator <- as.factor(IMF_Eff_Fuel_taxes$Indicator)
+IMF_Eff_Fuel_taxes$Year <- as.factor(IMF_Eff_Fuel_taxes$Year)
+IMF_Eff_Fuel_taxes$Value <- as.numeric(IMF_Eff_Fuel_taxes$Value)
+IMF_Eff_Fuel_taxes  <- merge(Coalition_WB_classification, IMF_Eff_Fuel_taxes )
+
+#End of converting to factor and merging
+#WBIEA
+WB_wdi_IEA_ghg <- full_join(Coalition_WB_data, IEA_GHG_CO2)
+
+wide_WB_IEA <- dcast(WB_wdi_IEA_ghg, Country+Region+Income_group+Year~Indicator)
+
+#Converting Year to Factor and Removing unwanted columns
+wide_WB_IEA$Year <- as.factor(wide_WB_IEA$Year)
+wide_WB_IEA <- wide_WB_IEA[-c(5,6,7,10,12,15)]
+
+names(wide_WB_IEA)[5] <- "CO2_emissions_mill.tonnes"
+names(wide_WB_IEA)[6] <- "CO2_emissions_tonnes_percap"
+names(wide_WB_IEA)[7] <- "Energy_intensity_prim_en"
+names(wide_WB_IEA)[8] <- "GDP_growth"
+names(wide_WB_IEA)[9] <- "GDP_percap"
+names(wide_WB_IEA)[10] <- "GHG_emissions_KT"
+names(wide_WB_IEA)[11] <- "GHG_emissions_tonnes_percap"
+wide_WB_IEA <- filter(wide_WB_IEA, Year != "2019")
+
+#CCriskreadiness
+str(CC_risk_readiness)
+wide_CC_risk_readiness <- dcast(CC_risk_readiness, Country+Region+Income_group+Year~Indicator)
+str(wide_CC_risk_readiness)
+names(wide_CC_risk_readiness)[5] <- "adap_ready"
+names(wide_CC_risk_readiness)[6] <- "cc_losses_to_GDP"
+names(wide_CC_risk_readiness)[7] <- "clim_vulnerable"
+wide_CC_risk_readiness$adap_ready <- wide_CC_risk_readiness$adap_ready/100
+
+#OECDenvironmentaltax
+wide_OECD_env_taxes_all <- dcast(OECD_env_taxes_all, Country+Region+Income_group+Year~Indicator)
+str(wide_OECD_env_taxes_all)
+names(wide_OECD_env_taxes_all)[5] <- "ET_shareofTTR"
+names(wide_OECD_env_taxes_all)[6] <- "ET_percap"
+names(wide_OECD_env_taxes_all)[7] <- "ET_to_GDP"
+
+#OECD Carbon pricing gap at EUR 30 60
+str(OECD_CP_gap_EUR30_60)
+OECD_CP_gap_EUR30_60$Value <- OECD_CP_gap_EUR30_60$Value*100
+#Casting for further analysis
+wide_OECD_cp_gap30_60 <- dcast(OECD_CP_gap_EUR30_60, Country+Region+Income_group+Year~Indicator)
+names(wide_OECD_cp_gap30_60)[5] <- "CP_gap_EUR30"
+names(wide_OECD_cp_gap30_60)[6] <- "CP_gap_EUR60"
+
+#OECD Proportion of Emissions
+OECD_prop_emissions_price$Value <- OECD_prop_emissions_price$Value*100
+OECD_prop_emissions_price$Indicator <- ordered(OECD_prop_emissions_price$Indicator, 
+                                               levels = c("Proportion of emissions priced at or above EUR 0",
+                                                          "Proportion of emissions priced at or above EUR 5",
+                                                          "Proportion of emissions priced at or above EUR 30",
+                                                          "Proportion of emissions priced at or above EUR 60"))
+
+OECD_prop_emissions_price$Indicator <- ordered(OECD_prop_emissions_price$Indicator)
+
+wide_OECD_prop_emissions_price <- dcast(OECD_prop_emissions_price, Country+Region+Income_group+Year~Indicator)
+str(wide_OECD_prop_emissions_price)
+names(wide_OECD_prop_emissions_price)[5] <- "Prop_emiss_EUR0"
+names(wide_OECD_prop_emissions_price)[6] <- "Prop_emiss_EUR5"
+names(wide_OECD_prop_emissions_price)[7] <- "Prop_emiss_EUR30"
+names(wide_OECD_prop_emissions_price)[8] <- "Prop_emiss_EUR60"
+
+wide_IMF_Eff_Fuel_taxes <- dcast(IMF_Eff_Fuel_taxes, Country+Region+Income_group+Year~Indicator)
+str(wide_IMF_Eff_Fuel_taxes)
+names(wide_IMF_Eff_Fuel_taxes)[5] <- "PT_subs_perc_GDP_Coal"
+names(wide_IMF_Eff_Fuel_taxes)[6] <- "PT_subs_perc_GDP_Elec"
+names(wide_IMF_Eff_Fuel_taxes)[7] <- "PT_subs_perc_GDP_Natgas"
+names(wide_IMF_Eff_Fuel_taxes)[8] <- "PT_subs_perc_GDP_Petrol"
+names(wide_IMF_Eff_Fuel_taxes)[9] <- "PT_subs_perc_GDP_Total"
+names(wide_IMF_Eff_Fuel_taxes)[10] <- "PT_subs_USD_billions_Coal"
+names(wide_IMF_Eff_Fuel_taxes)[11] <- "PT_subs_USD_billions_Elec"
+names(wide_IMF_Eff_Fuel_taxes)[12] <- "PT_subs_USD_billions_Natgas"
+names(wide_IMF_Eff_Fuel_taxes)[13] <- "PT_subs_USD_billions_Petrol"
+names(wide_IMF_Eff_Fuel_taxes)[14] <- "PT_subs_USD_billions_Total"
+names(wide_IMF_Eff_Fuel_taxes)[15] <- "PT_subs_USD_percap_Coal"
+names(wide_IMF_Eff_Fuel_taxes)[16] <- "PT_subs_USD_percap_Elec"
+names(wide_IMF_Eff_Fuel_taxes)[17] <- "PT_subs_USD_percap_Natgas"
+names(wide_IMF_Eff_Fuel_taxes)[18] <- "PT_subs_USD_percap_Petrol"
+names(wide_IMF_Eff_Fuel_taxes)[19] <- "PT_subs_USD_percap_Total"
+
+#Creating separate data frames for each of the Subsidies denominations - perc_GDP, USD_billions & USD_percap
+PT_subs_per_GDP <- select(wide_IMF_Eff_Fuel_taxes, Country:PT_subs_perc_GDP_Total)
+PT_subs_USD_billions <- select(wide_IMF_Eff_Fuel_taxes, 
+                               c(Country:Year,PT_subs_USD_billions_Coal:PT_subs_USD_billions_Total))
+PT_subs_USD_percap <- select(wide_IMF_Eff_Fuel_taxes, 
+                             c(Country:Year,PT_subs_USD_percap_Coal:PT_subs_USD_percap_Total))
+
+#Melting for Analysis
+long_PT_subs_per_GDP <- melt(PT_subs_per_GDP, id.vars = c("Country","Region","Income_group","Year"),
+                             variable.name = "Indicator",
+                             value.name = "Value")
+
+
+long_PT_USD_billions <- melt(PT_subs_USD_billions, id.vars = c("Country","Region","Income_group","Year"),
+                             variable.name = "Indicator",
+                             value.name = "Value")
+
+long_PT_subs_USD_percap <- melt(PT_subs_USD_percap, id.vars = c("Country","Region","Income_group","Year"),
+                             variable.name = "Indicator",
+                             value.name = "Value")
+
+
+#OECD_IEA_Energy_Indic
+
+  #Merge with CAT decarbonisation
+
+OECD_CAT_energy <- full_join(OECD_IEA_energy_indic, CAT_decarbonisation)
+wide_OECD_CAT_energy <- dcast(OECD_CAT_energy, Country+Region+Income_group+Year~Indicator)
+str(wide_OECD_CAT_energy)
+wide_OECD_CAT_energy$Year <- as.factor(wide_OECD_CAT_energy$Year)
+wide_OECD_CAT_energy <- select(wide_OECD_CAT_energy, -c("Coal share in energy supply in Primary Energy [%]",
+                                                        "Fossil fuel share [%]",
+                                                        "Industry emissions intensity (per GVA) [tCO2 / thsd. USD2012] (PPP)]",
+                                                        "Emissions intensity of GDP [tCO2e / thsd. USD2012 (PPP)]",
+                                                        "GDP (billion 2010 USD using PPPs)",
+                                                        "Emissions intensity of primary energy [tCO2 / TJ (primary)]"))
+
+names(wide_OECD_CAT_energy)[5] <- "emissions_percap"
+names(wide_OECD_CAT_energy)[6] <- "energy_production_mtoe"
+names(wide_OECD_CAT_energy)[7] <- "final_energy_intensity_GDP"
+names(wide_OECD_CAT_energy)[8] <- "GDP_percap"
+names(wide_OECD_CAT_energy)[9] <- "primary_energy_intensity_GDP"
+names(wide_OECD_CAT_energy)[10] <- "share_ff_TPES"
+names(wide_OECD_CAT_energy)[11] <- "share_renewable_TPES"
+names(wide_OECD_CAT_energy)[12] <- "TPES_mtoe"
+names(wide_OECD_CAT_energy)[13] <- "TPES_to_GDP"
+names(wide_OECD_CAT_energy)[14] <- "TPES_to_population"
+
+wide_OECD_CAT_energy$ff_TPES <- wide_OECD_CAT_energy$share_ff_TPES*wide_OECD_CAT_energy$TPES_mtoe
+wide_OECD_CAT_energy$renewable_TPES <- wide_OECD_CAT_energy$share_renewable_TPES*wide_OECD_CAT_energy$TPES_mtoe
+wide_OECD_CAT_energy <- select(wide_OECD_CAT_energy, -c("share_ff_TPES","share_renewable_TPES"))
+wide_OECD_CAT_energy$other_TPES <- wide_OECD_CAT_energy$TPES_mtoe - 
+  (wide_OECD_CAT_energy$ff_TPES+wide_OECD_CAT_energy$renewable_TPES)
+str(wide_OECD_CAT_energy)
+  
+TPES_ff_renew <- select(wide_OECD_CAT_energy, c(Country:Year,TPES_mtoe, ff_TPES:other_TPES))
+TPES_vs_energy_prod <- select(wide_OECD_CAT_energy, c(Country:Year,TPES_mtoe,energy_production_mtoe))
+TPES_GDP_pop <- select(wide_OECD_CAT_energy, c(Country:Year,TPES_mtoe:TPES_to_population))
+GDP_emissions_percap <- select(wide_OECD_CAT_energy, c(Country:Year,emissions_percap,GDP_percap))
+energy_intensity_GDP <- select(wide_OECD_CAT_energy, c(Country:Year,final_energy_intensity_GDP,
+                                                       primary_energy_intensity_GDP))
+
+
+label1 <- c(emissions_percap = "Emissions Per Capita",
+            energy_production_mtoe = "Energy Production (MToe)",
+            final_energy_intensity_GDP = "Final Energy Intensity of GDP",
+            GDP_percap = "GDP per capita",
+            primary_energy_intensity_GDP = "Primary Energy Intensity of GDP",
+            share_ff_TPES = "Share of Fossil Fuel in TPES",
+            share_renewable_TPES = "Share of Renewable in TPES",
+            TPES_mtoe = "Total Primary Energy Supply",
+            TPES_to_GDP = "TPES to GDP",
+            TPES_to_population = "TPES to population")
+
+long_TPES_vs_energy_prod <- melt(TPES_vs_energy_prod, id.vars = c("Country","Region","Income_group","Year"),
+                                 variable.name = "Indicator",
+                                 value.name = "Value")
+
+long_TPES_vs_energy_prod <- filter(long_TPES_vs_energy_prod, Year != '2020' & Year != '2025' & Year != '2030' & Year != '2050')
+
+long_TPES_ff_renew <- melt(TPES_ff_renew, id.vars = c("Country","Region","Income_group","Year"),
+                           variable.name = "Indicator",
+                           value.name = "Value")
+long_TPES_ff_renew <- filter(long_TPES_ff_renew, Year != '2020' & Year != '2025' & Year != '2030' & Year != '2050')
+
+
+long_TPES_GDP_pop <- melt(TPES_GDP_pop, id.vars = c("Country","Region","Income_group","Year"),
+                          variable.name = "Indicator",
+                          value.name = "Value")
+long_TPES_GDP_pop <- filter(long_TPES_GDP_pop, Year != '2020' & Year != '2025' & Year != '2030' & Year != '2050')
+
+
+long_GDP_emissions_percap <- melt(GDP_emissions_percap, id.vars = c("Country","Region","Income_group","Year"),
+                           variable.name = "Indicator",
+                           value.name = "Value")
+long_GDP_emissions_percap <- filter(long_GDP_emissions_percap, Year != '2017' & Year != '2018' & Year != '2050')
+
+long_energy_intensity_GDP <- melt(energy_intensity_GDP, id.vars = c("Country","Region","Income_group","Year"),
+                          variable.name = "Indicator",
+                          value.name = "Value")
+
+wide_long_TPES_GDP_pop <- dcast(long_TPES_GDP_pop, Country+Region+Income_group+Year~Indicator)
+
+wide_long_GDP_emissions_percap <- dcast(long_GDP_emissions_percap, Country+Region+Income_group+Year~Indicator)
+
+wide_long_energy_intensity_GDP <- dcast(long_energy_intensity_GDP, Country+Region+Income_group+Year~Indicator)
+
+wide_WB_CP_dashboard <- dcast(WB_cp_dashboard, Country+Region+Income_group+Year~Indicator)
+str(wide_WB_CP_dashboard)
+names(wide_WB_CP_dashboard)[5] <- "GHG_covered_carbtax"
+names(wide_WB_CP_dashboard)[6] <- "GHG_covered_ETS"
+names(wide_WB_CP_dashboard)[7] <- "Gov_income_carbtax_billions"
+names(wide_WB_CP_dashboard)[8] <- "Gov_income_ETS_billions"
+names(wide_WB_CP_dashboard)[9] <- "prop_GHG_covered_carbtax"
+names(wide_WB_CP_dashboard)[10] <- "prop_GHG_covered_ETS"
+names(wide_WB_CP_dashboard)[11] <- "Value_carbtax_billions"
+names(wide_WB_CP_dashboard)[12] <- "Value_ETS_billions"
+
+GHG_covered_CP <- select(wide_WB_CP_dashboard, c(Country:Gov_income_ETS_billions))
+long_GHG_covered_CP <- melt(GHG_covered_CP, id.vars = c("Country",
+                                                      "Region",
+                                                      "Income_group",
+                                                      "Year"),
+                          variable.name = "Indicator",
+                          value.name = "Value")
+
+labels <- c(GHG_covered_carbtax = "GHG emissions covered by Carbon Tax", 
+            GHG_covered_ETS = "GHG Emissions covered by ETS",
+            Gov_income_carbtax_billions = "Government income by Carbon Tax (billions)",
+            Gov_income_ETS_billions = "Government income by ETS(billions)")
+
+long_ghg_cov <- select(wide_WB_CP_dashboard, Country:GHG_covered_ETS)
+long_ghg_cov <- melt(long_ghg_cov, id.vars = c("Country","Region","Income_group","Year"),
+                     variable.name = "Indicator",
+                     value.name = "Value")
+
+
+long_gov_inc <- select(wide_WB_CP_dashboard, Country:Year,Gov_income_carbtax_billions:Gov_income_ETS_billions)
+long_gov_inc <- melt(long_gov_inc, id.vars = c("Country","Region","Income_group","Year"),
+                     variable.name = "Indicator",
+                     value.name = "Value")
+
+```
+
+
+# Sidebar {.sidebar}
+
+
+This database of select climate-related and macro-fiscal indicators This database of select climate-related and macro-fiscal indicators is part of an ongoing effort by the Coalition of Finance Ministers to support its members in scaling climate ambition and tracking progress on the workstreams of the Santiago Action Plan. 
+
+The indicators in the database reflect the status quo of Coalition members in aligning their national climate commitments with the Helsinki Principles, a set of six guiding principles which promote climate action through the use of fiscal and macroeconomic policy instruments. 
+
+Learn more about the Coalition of Finance Ministers for Climate Action here - https://www.cape4financeministry.org/coalition_of_finance_ministers 
+
+
+
+# Economic Growth and Emissions
+
+## Row {.tabset}
+
+
+### Key Economic and Energy Indicators by Country
+
+```{r}
+a1 <- ggplot(OECD_IEA_energy_indic,
+       aes(x=Year, y= Value, color = Country))+
+  geom_point(shape = 1, size = 1, stroke = 1.25)  +
+  facet_wrap(~Indicator, scales = "free")+
+  labs(caption = "Source: OECD-IEA 2019")+
+  xlab("Year")+
+  ylab("Value")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  theme_classic()
+
+ggplotly(a1)
+```
+
+
+### Key Economic and Energy Indicators by Country
+
+```{r}
+a1 <- ggplot(OECD_IEA_energy_indic,
+       aes(x=Year, y= Value, color = Country))+
+  geom_point(shape = 1, size = 1, stroke = 1.25)  +
+  facet_wrap(~Indicator, scales = "free")+
+  labs(caption = "Source: OECD-IEA 2019")+
+  xlab("Year")+
+  ylab("Value")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  theme_classic()
+
+ggplotly(a1)
+```
+
+
+### Key Economic and Energy Indicators by Country
+
+```{r}
+a1 <- ggplot(OECD_IEA_energy_indic,
+       aes(x=Year, y= Value, color = Country))+
+  geom_point(shape = 1, size = 1, stroke = 1.25)  +
+  facet_wrap(~Indicator, scales = "free")+
+  labs(caption = "Source: OECD-IEA 2019")+
+  xlab("Year")+
+  ylab("Value")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  theme_classic()
+
+a1
+```
+
+
+### Total Energy Production vs. Primary Energy Supply
+
+```{r}
+a2 <- ggplot(long_TPES_vs_energy_prod, aes(x=Country, y = Value, color = Indicator))+
+  geom_point(shape = 1, size = 1, stroke = 1.25)+
+  theme_minimal()+
+  facet_wrap(~Year, scales = "free_x", nrow = 1)+
+  coord_flip()+
+  labs(title = "Total Energy Production vs. Primary Energy Supply",
+       caption = "Source: IEA World Energy Outlook 2018")+
+  xlab("Year")+
+  ylab("Value")+
+  theme(legend.position = c("bottom"),  
+        legend.direction = "horizontal")+
+  scale_color_discrete(name  ="Energy Production vs Supply",
+                       labels=c("Total Energy Production", 
+                                "Total Primary Energy Supply"))
+ggplotly(a2)
+```
+
+
+### Total Energy Production vs. Primary Energy Supply
+
+```{r}
+a2 <- ggplot(long_TPES_vs_energy_prod, aes(x=Country, y = Value, color = Indicator))+
+  geom_point(shape = 1, size = 1, stroke = 1.25)+
+  theme_minimal()+
+  facet_wrap(~Year, scales = "free_x", nrow = 1)+
+  coord_flip()+
+  labs(title = "Total Energy Production vs. Primary Energy Supply",
+       caption = "Source: IEA World Energy Outlook 2018")+
+  xlab("Year")+
+  ylab("Value")+
+  theme(legend.position = c("bottom"),  
+        legend.direction = "horizontal")+
+  scale_color_discrete(name  ="Energy Production vs Supply",
+                       labels=c("Total Energy Production", 
+                                "Total Primary Energy Supply"))
+ggplotly(a2)
+```
+
+### Total Primary Energy Supply by Energy Source
+
+```{r}
+a3 <- ggplot(long_TPES_ff_renew, aes(x=Country, y = Value, color = fct_rev(Indicator)))+
+  geom_point(shape = 1, size = 1, stroke = 1.5)+
+  theme_minimal()+
+  coord_flip()+
+  facet_wrap(~Year, scales = "free_x", nrow = 1)+
+  scale_color_discrete(name  ="Total primary Energy Supply",
+                       labels=c("Other", 
+                                "Total Reneweable Energy Supply", 
+                                "Total Fossil Fuel Energy Supply",
+                                "Total"))+
+  labs(title = "Total Primary Energy Supply",
+       caption = "Source: IEA World Energy Outlook 2018")+
+  xlab("Country")+
+  ylab("Total Primary Energy Supply")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")
+
+ggplotly(a3)
+```
+
+### Total Primary Energy Supply, By population vs. GDP
+
+```{r}
+a4 <- ggplot(wide_long_TPES_GDP_pop, aes(x=TPES_to_population, 
+                                   y = TPES_to_GDP, 
+                                   color = Income_group, 
+                                   fill = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.5)+
+  geom_text_repel(aes(label = Country), size = 1.5)+
+  coord_cartesian(xlim = c(0,6), ylim = c(0,0.3))+
+  theme_minimal()+
+  facet_wrap(~Year, scales = "free")+
+  labs(caption = "Source: IEA World Energy Outlook 2018")+
+  scale_colour_discrete(name  ="Income Group",
+                        labels=c("High Income", 
+                                 "Low Income", 
+                                 "Lower Middle Income",
+                                 "Upper Middle Income"))+
+    xlab("Total Primary Energy Supply to Population")+
+    ylab("Total Primary Energy Supply to GDP")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(fill = FALSE)+
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+  
+a4
+```
+
+
+### Emissions Per Capita vs. GDP Per Capita
+
+```{r}
+a5 <- ggplot(wide_long_GDP_emissions_percap, aes(x=emissions_percap, 
+                                   y = GDP_percap, 
+                                   color = Income_group, 
+                                   fill = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.75)+
+  geom_text_repel(aes(label = Country), size = 2)+
+  theme_minimal()+
+  facet_wrap(~Year, scales = "free")+
+  labs(caption = "Source: Climate Action Tracker 2019")+
+  scale_colour_discrete(name  ="Income Group",
+                        labels=c("High Income", 
+                                 "Low Income", 
+                                 "Lower Middle Income",
+                                 "Upper Middle Income"))+
+  xlab("Emissions Per Capita [tCO2e / cap]")+
+  ylab("GDP Per Capita [thousand USD2012 (PPP) / cap]")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(fill = FALSE)+
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+
+a5
+```
+
+
+### CO2 Emissions Per Capita vs GDP growth (2013-2018)
+
+
+```{r}
+
+a6 <- ggplot(wide_WB_IEA, aes(x = CO2_emissions_tonnes_percap, y = GDP_growth, color = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.5)+
+  geom_text_repel(aes(label = Country), size = 1.5)+
+  theme_minimal()+
+  facet_wrap(~Year, scales = "free")+
+  labs(caption = "Source: WB-IEA 2019")+
+  xlab("CO2 emissions (tonnes per capita)")+
+  ylab("GDP growth (%)")+
+  theme(text = element_text(color = "gray20"),
+        legend.position = c("top"),  
+        legend.direction = "horizontal",
+        legend.justification = 0.1,
+        legend.text = element_text(size = 11, color = "gray10"),
+        axis.text = element_text(face = "italic"),
+        axis.title.x = element_text(vjust = -1), # move title away from axis
+        axis.title.y = element_text(vjust = 2), # move away for axis
+        axis.ticks.y = element_blank(), # element_blank() is how we remove elements
+        axis.line.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  labs(color = NULL)+
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+a6
+
+```
+
+
+### GHG Emissions Per Capita vs GDP growth (2013-2018)
+
+
+```{r}
+a7 <- ggplot(wide_WB_IEA, aes(x = GHG_emissions_tonnes_percap, y = GDP_growth, color = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.75)+
+  geom_text_repel(aes(label = Country), size = 2)+
+  theme_minimal()+
+  facet_wrap(~Year, scales = "free")+
+  labs(caption = "Source: WB-IEA 2019")+
+  xlab("GHG emissions (tonnes per capita)")+
+  ylab("GDP growth (%)")+
+  theme(text = element_text(color = "gray20"),
+        legend.position = c("top"),  
+        legend.direction = "horizontal",
+        legend.justification = 0.1,
+        legend.text = element_text(size = 11, color = "gray10"),
+        axis.text = element_text(face = "italic"),
+        axis.title.x = element_text(vjust = -1), # move title away from axis
+        axis.title.y = element_text(vjust = 2), # move away for axis
+        axis.ticks.y = element_blank(), # element_blank() is how we remove elements
+        axis.line.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  labs(color = NULL)+
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+a7
+```
+
+### Energy Intensity of GDP 
+
+```{r}
+a8 <- ggplot(wide_long_energy_intensity_GDP, aes(x=final_energy_intensity_GDP , 
+                                           y = primary_energy_intensity_GDP, 
+                                           color = Income_group, 
+                                           fill = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.75)+
+  geom_text_repel(aes(label = Country), size = 2)+
+  coord_flip()+
+  theme_minimal()+
+  facet_wrap(~Year, scales = "free")+
+  labs(title = "Energy Intensity of GDP , 2013-2016, projections (2020-2030)",
+       caption = "Source: Climate Action Tracker 2019")+
+  scale_colour_discrete(name  ="Income Group",
+                        labels=c("High Income", 
+                                 "Low Income", 
+                                 "Lower Middle Income",
+                                 "Upper Middle Income"))+
+  xlab("Final Energy Intensity of GDP")+
+  ylab("Primary Energy Intensity of GDP")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(fill = FALSE)+
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+a8
+```
+
+
+### Data - Key Energy Indicators
+
+
+```{r}
+DT::datatable(
+  wide_OECD_CAT_energy, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
+
+### Data - CO2/GHG Emissions to GDP
+
+
+```{r}
+DT::datatable(
+  wide_WB_IEA, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
+
+# Climate Vulnerability and Adaptation Readiness
+
+
+## Row {.tabset}
+
+
+### Climate vulnerability vs Adaptation Readiness, by Coalition country (2017)
+
+
+
+```{r, fig.height=7, fig.width=9}
+high_vul_low_adap <- filter(wide_CC_risk_readiness, clim_vulnerable >0.4 & adap_ready <0.4)
+high_adap_low_vul <- filter(wide_CC_risk_readiness, clim_vulnerable <0.38 & adap_ready >0.58)
+
+b1 <- ggplot(wide_CC_risk_readiness,aes(x= clim_vulnerable, y = adap_ready, color = Income_group))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  theme_classic()+
+  geom_text_repel(aes(label = Country), size = 3)+
+  labs(title = "Climate vulnerability vs Adaptation Readiness by Coalition country (2017)",
+       caption = "Source: ND-GAIN Country Index 2017")+
+  xlab("Climate vulnerability (0-1, Higher more vulnerable)")+
+  ylab("Adaptation Readiness (0-1, Higher more ready)")+
+  geom_smooth(mapping = aes(linetype = "r2"),
+              method = "lm",
+              formula = y ~ x + log(x), se = FALSE,
+              color = "red")+
+  scale_x_continuous(limits = c(0.2,1),
+                     breaks = seq(0.2,1,0.05)) +
+  scale_y_continuous(limits = c(0.1,1),
+                     breaks = seq(0.1,1,0.1)) +
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))+
+  guides(linetype = FALSE,
+         color = FALSE)+
+  geom_encircle(aes(x=clim_vulnerable, y=adap_ready), 
+                data=high_vul_low_adap, 
+                color="red", 
+                size=2, 
+                expand=0.08)+
+  annotate("text", x = 0.8, y = 0.11, label = "Most At Risk \n from Climate Change", size = 3.5)+
+  geom_encircle(aes(x=clim_vulnerable, y=adap_ready), 
+                data=high_adap_low_vul, 
+                color="green", 
+                size=2, 
+                expand=0.08)+
+  annotate("text", x = 0.5, y = 0.9, label = "Most Adaptation Ready", size = 3.5)
+
+b1
+
+```
+
+### Vulnerability vs Losses to GDP due to Climate Change (2017)
+
+
+
+```{r, fig.height=7, fig.width=9}
+b2 <- ggplot(wide_CC_risk_readiness,aes(x= clim_vulnerable, y = cc_losses_to_GDP, color = Income_group))+
+  geom_point(shape = 1, size = 2.5, stroke = 1.25)+
+  theme_minimal()+
+  geom_text_repel(aes(label = Country), size = 2.5)+
+  labs(caption = "Source: ND-GAIN Country Index 2017")+
+  xlab("Climate change-related Losses to GDP (%)")+
+  ylab("Climate Vulnerability")+
+  geom_smooth(mapping = aes(linetype = "r2"),
+              method = "lm",
+              formula = y ~ x+log(x), se = FALSE,
+              color = "red")+
+    scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))+
+  guides(linetype = FALSE,
+         color = FALSE)+
+  scale_y_continuous(breaks = c(0.1,0.15,0.2,0.25,0.3,0.5,1,2,3,4,5))
+
+b2
+```
+
+
+### Climate vulnerability vs Adaptation Readiness, by Coalition country (2017)
+
+
+
+```{r, fig.height=7, fig.width=9}
+high_vul_low_adap <- filter(wide_CC_risk_readiness, clim_vulnerable >0.4 & adap_ready <0.4)
+high_adap_low_vul <- filter(wide_CC_risk_readiness, clim_vulnerable <0.38 & adap_ready >0.58)
+
+b1 <- ggplot(wide_CC_risk_readiness,aes(x= clim_vulnerable, y = adap_ready, color = Income_group))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  theme_classic()+
+  geom_text_repel(aes(label = Country), size = 3)+
+  labs(title = "Climate vulnerability vs Adaptation Readiness by Coalition country (2017)",
+       caption = "Source: ND-GAIN Country Index 2017")+
+  xlab("Climate vulnerability (0-1, Higher more vulnerable)")+
+  ylab("Adaptation Readiness (0-1, Higher more ready)")+
+  geom_smooth(mapping = aes(linetype = "r2"),
+              method = "lm",
+              formula = y ~ x + log(x), se = FALSE,
+              color = "red")+
+  scale_x_continuous(limits = c(0.2,1),
+                     breaks = seq(0.2,1,0.05)) +
+  scale_y_continuous(limits = c(0.1,1),
+                     breaks = seq(0.1,1,0.1)) +
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))+
+  guides(linetype = FALSE,
+         color = FALSE)+
+  geom_encircle(aes(x=clim_vulnerable, y=adap_ready), 
+                data=high_vul_low_adap, 
+                color="red", 
+                size=2, 
+                expand=0.08)+
+  annotate("text", x = 0.8, y = 0.11, label = "Most At Risk \n from Climate Change", size = 3.5)+
+  geom_encircle(aes(x=clim_vulnerable, y=adap_ready), 
+                data=high_adap_low_vul, 
+                color="green", 
+                size=2, 
+                expand=0.08)+
+  annotate("text", x = 0.5, y = 0.9, label = "Most Adaptation Ready", size = 3.5)
+
+b1
+
+```
+
+
+### Vulnerability vs Losses to GDP due to Climate Change (2017)
+
+
+
+```{r, fig.height=7, fig.width=9}
+b2 <- ggplot(wide_CC_risk_readiness,aes(x= clim_vulnerable, y = cc_losses_to_GDP, color = Income_group))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  theme_minimal()+
+  geom_text_repel(aes(label = Country), size = 2)+
+  labs(caption = "Source: ND-GAIN Country Index 2017")+
+  xlab("Climate change-related Losses to GDP (%)")+
+  ylab("Climate Vulnerability")+
+  geom_smooth(mapping = aes(linetype = "r2"),
+              method = "lm",
+              formula = y ~ x+log(x), se = FALSE,
+              color = "red")+
+    scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))+
+  guides(linetype = FALSE,
+         color = FALSE)+
+  scale_y_continuous(breaks = c(0.1,0.15,0.2,0.25,0.3,0.5,1,3))
+
+b2
+```
+
+
+### Losses to GDP due to Climate Change by Country (2017)
+
+
+
+```{r}
+
+b3 <- ggplot(wide_CC_risk_readiness,aes(x= Country, y = cc_losses_to_GDP, color = Income_group))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  theme_minimal()+
+  coord_flip()+
+  labs(caption = "Source: ND-GAIN Country Index 2017")+
+  xlab("Country")+
+  ylab("Losses to GDP (2017)")+
+  guides(color = FALSE)
+
+ggplotly(b3)
+```
+
+### Adaptation Readiness by Country (2017)
+
+
+```{r, fig.height=7, fig.width=9}
+
+b4 <- ggplot(wide_CC_risk_readiness,aes(x= Country, y = adap_ready, color = Income_group, size = cc_losses_to_GDP))+
+  geom_point()+
+  theme_minimal()+
+  coord_flip()+
+  labs(subtitle = "Sized by losses to GDP due to climate change",
+       caption = "Source: ND-GAIN Country Index 2017")+
+  xlab("Country")+
+  ylab("Adaptation Readiness (0-1, Higher more ready)")+
+  guides(color = FALSE)
+
+ggplotly(b4)
+```
+
+### Climate Vulnerability by Country (2017)
+
+
+
+```{r, fig.height=7, fig.width=9}
+
+b5 <- ggplot(wide_CC_risk_readiness,aes(x= Country, y = clim_vulnerable, color = Region, size = cc_losses_to_GDP))+
+  geom_point()+
+  theme_minimal()+
+  coord_flip()+
+  labs(subtitle = "Sized by losses to GDP due to climate change",
+       caption = "Source: ND-GAIN Country Index 2017")+
+  xlab("Country")+
+  ylab("Climate vulnerability (0-1, Higher more vulnerable)")    +
+  guides(color = FALSE)
+     
+ggplotly(b5)
+```
+
+### Data - Climate Change Vulnerability and Adaptation Readiness
+
+
+
+```{r, fig.height=7, fig.width=9}
+DT::datatable(
+  wide_CC_risk_readiness, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
+
+
+# Environmental Taxation
+
+
+## Row {.tabset}
+
+
+### Environment-related Taxes by Year
+
+
+
+```{r}
+c1 <- ggplot(OECD_env_taxes_all,
+       aes(x=fct_rev(Country), y= Value, color = Year))+
+  geom_point(shape = 1, size = 1, stroke = 1.25)  +
+  facet_wrap(~Indicator, scales = "free_x")+
+  coord_flip()+
+  labs(caption = "Source: OECD Environmental tax data 2018")+
+  xlab("Country")+
+  ylab("Value")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  theme_minimal()
+
+ggplotly(c1)
+```
+
+### Environment-related Taxes by Year
+
+
+
+```{r}
+c1 <- ggplot(OECD_env_taxes_all,
+       aes(x=fct_rev(Country), y= Value, color = Year))+
+  geom_point(shape = 1, size = 1, stroke = 1.25)  +
+  facet_wrap(~Indicator, scales = "free_x")+
+  coord_flip()+
+  labs(caption = "Source: OECD Environmental tax data 2018")+
+  xlab("Country")+
+  ylab("Value")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  theme_minimal()
+
+ggplotly(c1)
+```
+
+
+### Environment-related Taxes: Share of GDP vs Taxes Per Capita (2014-18)
+
+
+
+```{r}
+c2 <- ggplot(wide_OECD_env_taxes_all, aes(x = ET_to_GDP, y = ET_percap, color = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.5)+
+  geom_text_repel(aes(label = Country), size = 1.5)+
+  theme_minimal()+
+  labs(caption = "Source: OECD Environmental tax data 2018")+
+  xlab("Environment-related taxes, share of GDP (%)")+
+  ylab("Environment-related taxes, per capita (US$)")+
+  facet_wrap(~Year, scales = "free")+
+  coord_cartesian(xlim = c(0,4), ylim = c(0,1800))+
+  theme(text = element_text(color = "gray20"),
+          legend.position = c("top"),  
+        legend.direction = "horizontal",
+        legend.justification = 0.1,
+        legend.text = element_text(size = 11, color = "gray10"),
+        axis.text = element_text(face = "italic"),
+        axis.title.x = element_text(vjust = -1), # move title away from axis
+        axis.title.y = element_text(vjust = 2), # move away for axis
+        axis.ticks.y = element_blank(), # element_blank() is how we remove elements
+        axis.line.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  labs(color = NULL)+
+    scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+c2
+```
+
+
+### Environment-related Taxes: Share of GDP vs Taxes Per Capita (2014-18)
+
+
+
+```{r}
+c2 <- ggplot(wide_OECD_env_taxes_all, aes(x = ET_to_GDP, y = ET_percap, color = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.5)+
+  geom_text_repel(aes(label = Country), size = 1.5)+
+  theme_minimal()+
+  labs(caption = "Source: OECD Environmental tax data 2018")+
+  xlab("Environment-related taxes, share of GDP (%)")+
+  ylab("Environment-related taxes, per capita (US$)")+
+  facet_wrap(~Year, scales = "free")+
+  coord_cartesian(xlim = c(0,4), ylim = c(0,1800))+
+  theme(text = element_text(color = "gray20"),
+          legend.position = c("top"),  
+        legend.direction = "horizontal",
+        legend.justification = 0.1,
+        legend.text = element_text(size = 11, color = "gray10"),
+        axis.text = element_text(face = "italic"),
+        axis.title.x = element_text(vjust = -1), # move title away from axis
+        axis.title.y = element_text(vjust = 2), # move away for axis
+        axis.ticks.y = element_blank(), # element_blank() is how we remove elements
+        axis.line.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  labs(color = NULL)+
+    scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+c2
+```
+
+
+### Environment-related Taxes: Share of GDP vs Share of Total Tax Revenue (2014-18)
+
+
+
+```{r}
+
+c3 <- ggplot(wide_OECD_env_taxes_all, aes(x = ET_to_GDP, y = ET_shareofTTR, color = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.5)+
+  geom_text_repel(aes(label = Country), size = 1.5)+
+  theme_classic()+
+  labs(caption = "Source: OECD Environmental tax data 2018")+
+  xlab("Environment-related taxes, share of GDP (%)")+
+  ylab("Environment-related taxes, share of total tax revenue (%)")+
+  facet_wrap(~Year, scales = "free")+
+  theme(text = element_text(color = "gray20"),
+        legend.position = c("top"),  
+        legend.direction = "horizontal",
+        legend.justification = 0.1,
+        legend.text = element_text(size = 11, color = "gray10"),
+        axis.text = element_text(face = "italic"),
+        axis.title.x = element_text(vjust = -1), # move title away from axis
+        axis.title.y = element_text(vjust = 2), # move away for axis
+        axis.ticks.y = element_blank(), # element_blank() is how we remove elements
+        axis.line.y = element_blank(),
+        panel.grid.major.x = element_blank())+
+  labs(color = NULL)+
+    scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+c3
+```
+
+### Environment-related Taxes: Taxes Per Capita vs Share of Total Tax Revenue (2014-18)
+
+
+
+```{r}
+
+c4 <- ggplot(wide_OECD_env_taxes_all, aes(x = ET_percap, y = ET_shareofTTR, color = Income_group))+
+  geom_point(shape = 1, stroke = 0.75, size = 1.5)+
+  geom_text_repel(aes(label = Country), size = 1.5)+
+  theme_classic()+
+  labs(caption = "Source: OECD Environmental tax data 2018")+
+  xlab("Environment-related taxes, Per Capita (US$)")+
+  ylab("Environment-related taxes, share of total tax revenue (%)")+
+  facet_wrap(~Year, scales = "free")+
+  theme(text = element_text(color = "gray20"),
+        legend.position = c("top"),  
+        legend.direction = "horizontal",
+        legend.justification = 0.1,
+        legend.text = element_text(size = 11, color = "gray10"),
+        axis.text = element_text(face = "italic"),
+        axis.title.x = element_text(vjust = -1), # move title away from axis
+        axis.title.y = element_text(vjust = 2), # move away for axis
+        axis.ticks.y = element_blank(), # element_blank() is how we remove elements
+        axis.line = element_line(color = "gray40", size = 0.5),
+        axis.line.y = element_blank(),
+        panel.grid.major = element_line(color = "gray50", size = 0.5),
+        panel.grid.major.x = element_blank())+
+  labs(color = NULL)+
+    scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#248E84",
+                                "#F2583F",
+                                "#96503F"))
+
+c4
+```
+
+### Data
+
+
+
+```{r, fig.height=7, fig.width=9}
+DT::datatable(
+  wide_OECD_env_taxes_all, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
+# Carbon Pricing Indicators
+
+## Row {.tabset}
+
+### Carbon Taxation: GHG Emissions Covered vs. Government Income (2018), by Income Group
+
+```{r}
+d1 <- ggplot(wide_WB_CP_dashboard,aes(x= GHG_covered_carbtax, 
+                                y = Gov_income_carbtax_billions, 
+                                color = Income_group))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  scale_x_continuous(breaks = seq(0,300,25))+
+  scale_y_continuous(breaks = seq(0,8,0.5))+
+  theme_minimal()+
+  geom_text_repel(aes(label = Country), size = 3)+
+  labs(caption = "Source: World Bank Carbon Pricing Dashboard 2019")+
+  xlab("GHG Emissions Covered by Carbon Taxes (MTCo2e)")+
+  ylab("Government Income from Carbon Taxes (Billions)")+
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#96503F"))+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")
+
+d1
+```
+
+### Carbon Taxation: GHG Emissions Covered vs. Government Income (2018), by Income Group
+
+```{r}
+d1 <- ggplot(wide_WB_CP_dashboard,aes(x= GHG_covered_carbtax, 
+                                y = Gov_income_carbtax_billions, 
+                                color = Income_group))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  scale_x_continuous(breaks = seq(0,300,25))+
+  scale_y_continuous(breaks = seq(0,8,0.5))+
+  theme_minimal()+
+  geom_text_repel(aes(label = Country), size = 2.25)+
+  labs(caption = "Source: World Bank Carbon Pricing Dashboard 2019")+
+  xlab("GHG Emissions Covered by Carbon Taxes (MTCo2e)")+
+  ylab("Government Income from Carbon Taxes (Billions)")+
+  scale_color_manual(name = "",
+                     values = c("#24576D",
+                                "#96503F"))+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")
+
+d1
+```
+
+### Carbon Pricing: GHG Emissions Covered By  Carbon Taxes vs. ETS (2017-18)
+
+```{r}
+d2 <- ggplot(long_ghg_cov,aes(x= Country, 
+                               y = Value, 
+                               color = Indicator))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  facet_wrap(~Indicator, scales = "free", labeller = labeller(Indicator = labels))+
+  coord_flip()+
+  theme_bw()+
+  labs(caption = "Source: World Bank Carbon Pricing Dashboard 2019")+
+  xlab("Country Name")+
+  ylab("GHG Emissions Covered by Carbon Pricing (MTCo2e)")+
+    theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  scale_colour_discrete(name  ="Type of Carbon Pricing Instrument",
+                        labels=c("Carbon Tax", 
+                                 "ETS"))
+
+ggplotly(d2)
+```
+
+
+### Carbon Pricing: GHG Emissions Covered By  Carbon Taxes vs. ETS (2017-18)
+
+```{r}
+d2 <- ggplot(long_ghg_cov,aes(x= Country, 
+                               y = Value, 
+                               color = Indicator))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  facet_wrap(~Indicator, scales = "free", labeller = labeller(Indicator = labels))+
+  coord_flip()+
+  theme_bw()+
+  labs(caption = "Source: World Bank Carbon Pricing Dashboard 2019")+
+  xlab("Country Name")+
+  ylab("GHG Emissions Covered by Carbon Pricing (MTCo2e)")+
+    theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  scale_colour_discrete(name  ="Type of Carbon Pricing Instrument",
+                        labels=c("Carbon Tax", 
+                                 "ETS"))
+
+ggplotly(d2)
+```
+
+
+### Carbon Taxation: GHG Emissions Covered vs. Government Income (2017-18)
+
+```{r}
+d3 <- ggplot(long_GHG_covered_CP,aes(x= Country, 
+                                y = Value, 
+                                color = Indicator))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  facet_wrap(~Indicator, scales = "free", labeller = labeller(Indicator = labels))+
+  coord_flip()+
+  theme_bw()+
+  geom_text_repel(aes(label = Country), size = 3)+
+  labs(caption = "Source: World Bank Carbon Pricing Dashboard 2019")+
+  xlab("Country Name")+
+  ylab("Value of Emissions Coverage/Government Income")+
+  scale_colour_discrete(name  ="Carbon Pricing Coverage and Income",
+                        labels=c("GHG Covered from Carbon Tax", 
+                                 "GHG Covered under ETS",
+                                 "Government income from Carbon Tax",
+                                 "Government income from ETS"))+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")
+
+d3
+```
+
+
+### Government Income from Carbon Tax vs. ETS, Billions US$ (2017-18)
+
+```{r}
+d4 <- ggplot(long_gov_inc,aes(x= Country, 
+                        y = Value, 
+                        color = Indicator))+
+  geom_point(shape = 1, size = 2, stroke = 1.25)+
+  facet_wrap(~Indicator, scales = "free", labeller = labeller(Indicator = labels))+
+  coord_flip()+
+  theme_bw()+
+  labs(caption = "Source: World Bank Carbon Pricing Dashboard 2019")+
+  xlab("Country Name")+
+  ylab("Government Income from Carbon Pricing (Billions)")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  scale_colour_discrete(name  ="Type of Carbon Pricing Instrument",
+                        labels=c("Carbon Tax", 
+                                 "ETS"))
+
+ggplotly(d4)
+```
+
+
+### Data - Carbon Pricing Coverage and Government Income
+
+
+```{r, fig.height=7, fig.width=9}
+DT::datatable(
+  wide_WB_CP_dashboard, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
+
+### Carbon Pricing Gap at EUR30 and EUR60 by Year
+
+```{r}
+d5 <- ggplot(OECD_CP_gap_EUR30_60, aes(x=Country, y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  facet_wrap(~Year, nrow = 1, scales = "free")+
+  labs(caption = "Source: OECD: Effective Carbon Rates 2018")+
+  xlab("Country")+
+  ylab("Carbon Pricing Gap (%)")+
+  theme_classic()
+
+ggplotly(d5)
+```
+
+
+### Data - Carbon Pricing Gap 
+
+
+```{r, fig.height=7, fig.width=9}
+DT::datatable(
+  wide_OECD_cp_gap30_60, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
+
+### Proportion of Emissions Priced at or above EUR0-60
+
+```{r}
+d6 <- ggplot(OECD_prop_emissions_price, aes(x=fct_rev(Country), y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  facet_wrap(~Year, ncol = 2, scales = "free")+
+  labs(caption = "Source: OECD: Effective Carbon Rates 2018")+
+  xlab("Country")+
+  ylab("Proportion of Emissions (%)")+
+  guides(color = FALSE)+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  theme_classic()
+
+ggplotly(d6)
+```
+
+
+### Data - Proportion of Emissions Priced at or above EUR0-60
+
+
+```{r, fig.height=7, fig.width=9}
+DT::datatable(
+  wide_OECD_prop_emissions_price, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
+# Global Energy Subsidies
+
+## Row {.tabset}
+
+### Energy Subsidies as a Percentage of GDP
+
+```{r}
+e1 <- ggplot(long_PT_subs_per_GDP, aes(x=Country, y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  theme_minimal()+
+  facet_wrap(~Income_group, nrow = 2, scales = "free")+
+  scale_color_discrete(name  ="Post-tax subsidies as a percentage of GDP:",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  scale_fill_discrete(name="Post-tax subsidies as a percentage of GDP",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  labs(title = "Post-tax subsidies as a percentage of GDP, 2015",
+       caption = "Source: IMF Energy Subsidies 2017")+
+  xlab("Country")+
+  ylab("Post-tax subsidies to GDP (%)")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(color = FALSE)
+
+ggplotly(e1)
+```
+
+### Energy Subsidies as a Percentage of GDP
+
+```{r}
+e1 <- ggplot(long_PT_subs_per_GDP, aes(x=Country, y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  theme_minimal()+
+  facet_wrap(~Income_group, nrow = 2, scales = "free")+
+  scale_color_discrete(name  ="Post-tax subsidies as a percentage of GDP:",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  scale_fill_discrete(name="Post-tax subsidies as a percentage of GDP",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  labs(title = "Post-tax subsidies as a percentage of GDP, 2015",
+       caption = "Source: IMF Energy Subsidies 2017")+
+  xlab("Country")+
+  ylab("Post-tax subsidies to GDP (%)")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(color = FALSE)
+
+ggplotly(e1)
+```
+
+
+### Energy Subsidies as a Percentage of GDP
+
+```{r}
+e1 <- ggplot(long_PT_subs_per_GDP, aes(x=Country, y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  theme_minimal()+
+  facet_wrap(~Income_group, nrow = 2, scales = "free")+
+  scale_color_discrete(name  ="Post-tax subsidies as a percentage of GDP:",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  scale_fill_discrete(name="Post-tax subsidies as a percentage of GDP",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  labs(title = "Post-tax subsidies as a percentage of GDP, 2015",
+       caption = "Source: IMF Energy Subsidies 2017")+
+  xlab("Country")+
+  ylab("Post-tax subsidies to GDP (%)")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(color = FALSE)
+
+e1
+```
+
+### Value of Energy Subsidies (USD Billions)
+
+```{r}
+e2 <- ggplot(long_PT_USD_billions, aes(x=Country, y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  theme_minimal()+
+  facet_wrap(~Income_group, nrow = 2, scales = "free")+
+  scale_color_discrete(name  ="Post-tax subsidies annual - USD (billions)",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  scale_fill_discrete(name="Post-tax subsidies annual - USD (billions)",
+                      labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  labs(caption = "Source: IMF Energy Subsidies 2017")+
+  xlab("Country")+
+  ylab("Post-tax subsidies USD(billions)")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(color = FALSE)
+
+ggplotly(e2)
+```
+
+### Value of Energy Subsidies (USD Billions)
+
+```{r}
+e2 <- ggplot(long_PT_USD_billions, aes(x=Country, y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  theme_minimal()+
+  facet_wrap(~Income_group, nrow = 2, scales = "free")+
+  scale_color_discrete(name  ="Post-tax subsidies annual - USD (billions)",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  scale_fill_discrete(name="Post-tax subsidies annual - USD (billions)",
+                      labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  labs(caption = "Source: IMF Energy Subsidies 2017")+
+  xlab("Country")+
+  ylab("Post-tax subsidies USD(billions)")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(color = FALSE)
+
+ggplotly(e2)
+```
+
+
+### Value of Energy Subsidies Per Capita (USD)
+
+```{r}
+e3 <- ggplot(long_PT_subs_USD_percap, aes(x=Country, y = Value, color = Indicator, fill = Indicator))+
+  geom_bar(stat = "identity", position = "dodge")+
+  coord_flip()+
+  theme_minimal()+
+  facet_wrap(~Income_group, nrow = 2, scales = "free")+
+  scale_color_discrete(name  ="Post-tax subsidies, per capita",
+                       labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  scale_fill_discrete(name="Post-tax subsidies, per capita",
+                      labels=c("Coal", "Electricity", "Natural Gas", "Petrol", "Total"))+
+  labs(caption = "Source: IMF Energy Subsidies 2017")+
+  xlab("Country")+
+  ylab("Post-tax subsidies - USD per capita")+
+  theme(legend.position = c("top"),  
+        legend.direction = "horizontal")+
+  guides(color = FALSE)
+
+ggplotly(e3)
+```
+
+### Data - Global Energy Subsidies 
+
+```{r}
+DT::datatable(
+  wide_IMF_Eff_Fuel_taxes, 
+              extensions = 'Buttons', options = list(
+    dom = 'Blfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    lengthMenu = list(c(10, 25, 50, -1), c(10, 25, 50, "All"))
+  )
+)
+```
+
